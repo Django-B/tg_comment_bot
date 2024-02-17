@@ -8,11 +8,11 @@ api_hash = 'ef40f2f3d50add35b31cf8292d00689e'
 client = TelegramClient('my_session', api_id, api_hash)
 
 _providers = [
+    g4f.Provider.You,
     g4f.Provider.Aichat,
     g4f.Provider.ChatBase,
     g4f.Provider.Bing,
     g4f.Provider.GptGo,
-    g4f.Provider.You,
     g4f.Provider.Yqcloud,
 ]
 
@@ -29,9 +29,20 @@ _models = [
     g4f.models.gpt_35_turbo_16k_0613,
 ]
 
+script1_prompt_template = '''
+Напиши ответ на этот пост, стиль общения краткий и дружелюбный:
+{}
+
+Вот примеры других комментариев:
+{}'''
+
+script2_prompt_template = '''
+Напиши вопрос к этому посту:
+{}
+'''
 
 
-async def parse_post(channel: str, limit: int = 3):
+async def get_posts(channel: str, limit: int = 3):
     '''Возвращает последние посты с канала'''
     async with client:
         posts = await client.get_messages(channel, limit=limit)
@@ -77,7 +88,10 @@ async def send_to_gpt(prompt: str) -> str | None:
                         provider=provider,
                     )
                     print(f'Model: {model}, Provider: {provider} - it is working')
-                    return str(response)
+                    if response:
+                        return str(response)
+                    else:
+                        continue
                 except Exception as _:
                     # print(f'{model}: is not working')
                     continue
@@ -85,25 +99,37 @@ async def send_to_gpt(prompt: str) -> str | None:
             # print(f'{provider.__name__}: is not working')
             continue
 
+async def script1(post: Message, comments: list|tuple):
+    if not post.text:
+        return
+    post_text = str(post.text).replace('\n', ' ')
+    comments_text = '\n'.join([comment.text.replace('\n', ' ')  for comment in comments if comment.text])
+    prompt = script1_prompt_template.format(post_text, comments_text)
+    response = await send_to_gpt(prompt)
+    return response
 
+async def script2(post: Message):
+    if not post.text:
+        return
+    post_text = str(post.text).replace('\n', ' ')
+    prompt = script2_prompt_template.format(post_text)
+    response = await send_to_gpt(prompt)
+    return response
 
 async def main():
     channel = 'https://t.me/test_channel2077'
     channel = 'https://t.me/mama_bond007'
     # channel = 'https://t.me/ithumor'
-    # posts = await parse_post(channel)
+    # posts = await get_posts(channel)
     # print(posts[0].views) # получение количества просмотров поста
-    # print(type(posts[0]))
     # await send_comment(channel, posts[0], 'New bot comment')
     # await send_comment(channel, posts[1], 'New bot comment')
     # comments = await get_comments(channel, posts[0])
     # print(comments)
 
-    response = await send_to_gpt('hello')
-    print(response)
-
-
-    
+    # run_script1 = await script1(posts[1], await get_comments(channel, posts[1]))
+    # run_script2 = await script2(posts[1])
+    # print(run_script2)
 
 
 if __name__=='__main__':
